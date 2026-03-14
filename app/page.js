@@ -9,7 +9,7 @@ import {
   AlertTriangle, Target, BarChart3, Radio, RefreshCw,
   Plus, X, Send
 } from 'lucide-react'
-import { db, collection, getDocs, addDoc, query, orderBy, onSnapshot } from './firebase'
+import { getDb, collection, getDocs, addDoc, query, orderBy, onSnapshot } from './firebase'
 
 // Components
 function GlassPanel({ children, className = '', glow = false }) {
@@ -303,41 +303,53 @@ export default function Dashboard() {
   
   // Fetch data from Firebase
   useEffect(() => {
-    // Jobs
-    const jobsQuery = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'))
-    const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
-      const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setJobs(jobsData)
-    })
+    let unsubJobs, unsubTechs, unsubFin, unsubInsights
     
-    // Technicians
-    const techsQuery = query(collection(db, 'technicians'), orderBy('name', 'asc'))
-    const unsubTechs = onSnapshot(techsQuery, (snapshot) => {
-      const techsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setTechnicians(techsData)
-    })
-    
-    // Financials
-    const finQuery = query(collection(db, 'financials'), orderBy('date', 'desc'))
-    const unsubFin = onSnapshot(finQuery, (snapshot) => {
-      if (!snapshot.empty) {
-        const latest = snapshot.docs[0].data()
-        setFinancials(latest)
+    const initFirebase = async () => {
+      const db = await getDb()
+      if (!db) {
+        console.log('Firebase not initialized')
+        return
       }
-    })
+      
+      // Jobs
+      const jobsQuery = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'))
+      unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
+        const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        setJobs(jobsData)
+      })
+      
+      // Technicians
+      const techsQuery = query(collection(db, 'technicians'), orderBy('name', 'asc'))
+      unsubTechs = onSnapshot(techsQuery, (snapshot) => {
+        const techsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        setTechnicians(techsData)
+      })
+      
+      // Financials
+      const finQuery = query(collection(db, 'financials'), orderBy('date', 'desc'))
+      unsubFin = onSnapshot(finQuery, (snapshot) => {
+        if (!snapshot.empty) {
+          const latest = snapshot.docs[0].data()
+          setFinancials(latest)
+        }
+      })
+      
+      // Insights
+      const insightsQuery = query(collection(db, 'insights'), orderBy('createdAt', 'desc'))
+      unsubInsights = onSnapshot(insightsQuery, (snapshot) => {
+        const insightsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        setInsights(insightsData.slice(0, 3))
+      })
+    }
     
-    // Insights
-    const insightsQuery = query(collection(db, 'insights'), orderBy('createdAt', 'desc'))
-    const unsubInsights = onSnapshot(insightsQuery, (snapshot) => {
-      const insightsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setInsights(insightsData.slice(0, 3))
-    })
+    initFirebase()
     
     return () => {
-      unsubJobs()
-      unsubTechs()
-      unsubFin()
-      unsubInsights()
+      unsubJobs?.()
+      unsubTechs?.()
+      unsubFin?.()
+      unsubInsights?.()
     }
   }, [])
   
@@ -356,7 +368,12 @@ export default function Dashboard() {
   
   const handleAddJob = async (jobData) => {
     try {
-      await addDoc(collection(db, 'jobs'), jobData)
+      const db = await getDb()
+      if (!db) return
+      await addDoc(collection(db, 'jobs'), {
+        ...jobData,
+        createdAt: new Date().toISOString()
+      })
       setShowAddJob(false)
     } catch (e) {
       console.error('Error adding job:', e)
