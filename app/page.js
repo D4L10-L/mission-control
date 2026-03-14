@@ -296,6 +296,7 @@ export default function Dashboard() {
   const [command, setCommand] = useState('')
   const [loading, setLoading] = useState(false)
   const [jobs, setJobs] = useState([])
+  const [opportunities, setOpportunities] = useState([])
   const [technicians, setTechnicians] = useState([])
   const [financials, setFinancials] = useState({ revenue: 0, expenses: 0, profit: 0, cashPosition: 0 })
   const [insights, setInsights] = useState([])
@@ -303,7 +304,7 @@ export default function Dashboard() {
   
   // Fetch data from Firebase
   useEffect(() => {
-    let unsubJobs, unsubTechs, unsubFin, unsubInsights
+    let unsubJobs, unsubTechs, unsubFin, unsubInsights, unsubOpportunities
     
     const initFirebase = async () => {
       const db = await getDb()
@@ -314,6 +315,13 @@ export default function Dashboard() {
       unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
         const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
         setJobs(jobsData)
+      })
+      
+      // Opportunities (auto-discovered contracts)
+      const oppQuery = query(collection(db, 'opportunities'), orderBy('discoveredAt', 'desc'))
+      unsubOpportunities = onSnapshot(oppQuery, (snapshot) => {
+        const oppData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        setOpportunities(oppData)
       })
       
       // Technicians
@@ -344,6 +352,7 @@ export default function Dashboard() {
     
     return () => {
       unsubJobs?.()
+      unsubOpportunities?.()
       unsubTechs?.()
       unsubFin?.()
       unsubInsights?.()
@@ -482,20 +491,39 @@ export default function Dashboard() {
             </div>
           </GlassPanel>
           
-          {/* Contracts */}
+          {/* Contracts / Opportunities */}
           <GlassPanel>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-accent-purple" />
                 Contract Pipeline
               </h2>
+              <span className="text-xs text-text-secondary">{jobs.length + opportunities.length} total</span>
             </div>
             <div className="space-y-2">
-              {jobs.map(job => (
+              {/* Manual jobs */}
+              {jobs.slice(0, 5).map(job => (
                 <JobCard key={job.id} job={job} />
               ))}
-              {jobs.length === 0 && (
-                <p className="text-text-secondary text-center py-8">No contracts yet</p>
+              {/* Auto-discovered opportunities */}
+              {opportunities.slice(0, 5).map(opp => (
+                <div key={opp.id} className="p-3 rounded-lg bg-white/5 border border-accent-purple/30 flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-white">{opp.title}</p>
+                    <p className="text-sm text-text-secondary">{opp.organization} • {opp.location}</p>
+                    {opp.estimatedValue && (
+                      <p className="text-sm text-accent-green">${opp.estimatedValue.toLocaleString()}</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-accent-purple">{Math.round(opp.confidence * 100)}%</p>
+                    <p className="text-xs text-text-secondary">confidence</p>
+                    <span className="text-xs px-2 py-0.5 rounded bg-accent-purple/20 text-accent-purple">{opp.source}</span>
+                  </div>
+                </div>
+              ))}
+              {jobs.length === 0 && opportunities.length === 0 && (
+                <p className="text-text-secondary text-center py-8">No contracts yet. Add manually or wait for auto-discovery.</p>
               )}
             </div>
           </GlassPanel>

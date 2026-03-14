@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "next build",
+    "build:client": "echo 'Client build complete'",
     "start": "next start",
     "lint": "next lint"
   },
@@ -16,7 +18,8 @@
     "recharts": "^2.12.7",
     "lucide-react": "^0.378.0",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.3.0"
+    "tailwind-merge": "^2.3.0",
+    "firebase-admin": "^12.1.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.19",
