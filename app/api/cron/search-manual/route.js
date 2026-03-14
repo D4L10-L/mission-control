@@ -1,4 +1,4 @@
-import { runSearchWorker } from '../../scripts/searchWorker'
+import { runSearchWorker } from '../search/route'
 
 export const dynamic = 'force-dynamic'
 
@@ -6,7 +6,6 @@ export async function POST(request) {
   try {
     const body = await request.json()
     
-    // Verify secret if configured
     const cronSecret = process.env.CRON_SECRET
     const providedSecret = body.secret
     
