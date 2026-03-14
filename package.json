@@ -4,22 +4,20 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run build:server && npm run build:client",
-    "build:server": "next build",
-    "build:client": "echo 'Client build complete'",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "firebase": "^12.10.0",
+    "framer-motion": "^11.2.4",
+    "lucide-react": "^0.378.0",
     "next": "14.2.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "framer-motion": "^11.2.4",
     "recharts": "^2.12.7",
-    "lucide-react": "^0.378.0",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.3.0",
-    "firebase-admin": "^12.1.0"
+    "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.19",

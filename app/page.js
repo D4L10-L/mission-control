@@ -9,7 +9,7 @@ import {
   AlertTriangle, Target, BarChart3, Radio, RefreshCw,
   Plus, X, Send
 } from 'lucide-react'
-import { getDb, collection, getDocs, addDoc, query, orderBy, onSnapshot } from '../lib/firebase'
+import { db, collection, getDocs, addDoc, query, orderBy, onSnapshot } from './firebase'
 
 // Components
 function GlassPanel({ children, className = '', glow = false }) {
@@ -296,7 +296,6 @@ export default function Dashboard() {
   const [command, setCommand] = useState('')
   const [loading, setLoading] = useState(false)
   const [jobs, setJobs] = useState([])
-  const [opportunities, setOpportunities] = useState([])
   const [technicians, setTechnicians] = useState([])
   const [financials, setFinancials] = useState({ revenue: 0, expenses: 0, profit: 0, cashPosition: 0 })
   const [insights, setInsights] = useState([])
@@ -304,58 +303,41 @@ export default function Dashboard() {
   
   // Fetch data from Firebase
   useEffect(() => {
-    let unsubJobs, unsubTechs, unsubFin, unsubInsights, unsubOpportunities
+    // Jobs
+    const jobsQuery = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'))
+    const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
+      const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setJobs(jobsData)
+    })
     
-    const initFirebase = async () => {
-      const db = await getDb()
-      if (!db) return
-      
-      // Jobs
-      const jobsQuery = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'))
-      unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
-        const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        setJobs(jobsData)
-      })
-      
-      // Opportunities (auto-discovered contracts)
-      const oppQuery = query(collection(db, 'opportunities'), orderBy('discoveredAt', 'desc'))
-      unsubOpportunities = onSnapshot(oppQuery, (snapshot) => {
-        const oppData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        setOpportunities(oppData)
-      })
-      
-      // Technicians
-      const techsQuery = query(collection(db, 'technicians'), orderBy('name', 'asc'))
-      unsubTechs = onSnapshot(techsQuery, (snapshot) => {
-        const techsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        setTechnicians(techsData)
-      })
-      
-      // Financials
-      const finQuery = query(collection(db, 'financials'), orderBy('date', 'desc'))
-      unsubFin = onSnapshot(finQuery, (snapshot) => {
-        if (!snapshot.empty) {
-          const latest = snapshot.docs[0].data()
-          setFinancials(latest)
-        }
-      })
-      
-      // Insights
-      const insightsQuery = query(collection(db, 'insights'), orderBy('createdAt', 'desc'))
-      unsubInsights = onSnapshot(insightsQuery, (snapshot) => {
-        const insightsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        setInsights(insightsData.slice(0, 3))
-      })
-    }
+    // Technicians
+    const techsQuery = query(collection(db, 'technicians'), orderBy('name', 'asc'))
+    const unsubTechs = onSnapshot(techsQuery, (snapshot) => {
+      const techsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setTechnicians(techsData)
+    })
     
-    initFirebase()
+    // Financials
+    const finQuery = query(collection(db, 'financials'), orderBy('date', 'desc'))
+    const unsubFin = onSnapshot(finQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const latest = snapshot.docs[0].data()
+        setFinancials(latest)
+      }
+    })
+    
+    // Insights
+    const insightsQuery = query(collection(db, 'insights'), orderBy('createdAt', 'desc'))
+    const unsubInsights = onSnapshot(insightsQuery, (snapshot) => {
+      const insightsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setInsights(insightsData.slice(0, 3))
+    })
     
     return () => {
-      unsubJobs?.()
-      unsubOpportunities?.()
-      unsubTechs?.()
-      unsubFin?.()
-      unsubInsights?.()
+      unsubJobs()
+      unsubTechs()
+      unsubFin()
+      unsubInsights()
     }
   }, [])
   
@@ -374,8 +356,6 @@ export default function Dashboard() {
   
   const handleAddJob = async (jobData) => {
     try {
-      const db = await getDb()
-      if (!db) return
       await addDoc(collection(db, 'jobs'), jobData)
       setShowAddJob(false)
     } catch (e) {
@@ -491,39 +471,20 @@ export default function Dashboard() {
             </div>
           </GlassPanel>
           
-          {/* Contracts / Opportunities */}
+          {/* Contracts */}
           <GlassPanel>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-accent-purple" />
                 Contract Pipeline
               </h2>
-              <span className="text-xs text-text-secondary">{jobs.length + opportunities.length} total</span>
             </div>
             <div className="space-y-2">
-              {/* Manual jobs */}
-              {jobs.slice(0, 5).map(job => (
+              {jobs.map(job => (
                 <JobCard key={job.id} job={job} />
               ))}
-              {/* Auto-discovered opportunities */}
-              {opportunities.slice(0, 5).map(opp => (
-                <div key={opp.id} className="p-3 rounded-lg bg-white/5 border border-accent-purple/30 flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-white">{opp.title}</p>
-                    <p className="text-sm text-text-secondary">{opp.organization} • {opp.location}</p>
-                    {opp.estimatedValue && (
-                      <p className="text-sm text-accent-green">${opp.estimatedValue.toLocaleString()}</p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-accent-purple">{Math.round(opp.confidence * 100)}%</p>
-                    <p className="text-xs text-text-secondary">confidence</p>
-                    <span className="text-xs px-2 py-0.5 rounded bg-accent-purple/20 text-accent-purple">{opp.source}</span>
-                  </div>
-                </div>
-              ))}
-              {jobs.length === 0 && opportunities.length === 0 && (
-                <p className="text-text-secondary text-center py-8">No contracts yet. Add manually or wait for auto-discovery.</p>
+              {jobs.length === 0 && (
+                <p className="text-text-secondary text-center py-8">No contracts yet</p>
               )}
             </div>
           </GlassPanel>
