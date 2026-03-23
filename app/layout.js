@@ -1,4 +1,5 @@
 import './globals.css'
+import ClientLayout from '@/components/ClientLayout'
 
 export const metadata = {
   title: 'Data Dogs Mission Control',
@@ -9,7 +10,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="bg-bg-primary min-h-screen gradient-mesh grid-bg">
-        {children}
+        <ClientLayout>
+          {children}
+        </ClientLayout>
       </body>
     </html>
   )

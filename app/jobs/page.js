@@ -1,0 +1,133 @@
+'use client'
+
+import { useState } from 'react'
+import { GlassPanel, Button, Badge, LoadingSpinner, EmptyState } from '@/components/ui'
+import { Header, Sidebar } from '@/components/ui'
+import { JobList, JobForm } from '@/components/jobs'
+import { useJobs } from '@/lib/hooks'
+import { useAuth } from '@/contexts/AuthContext'
+import { Plus, Briefcase, Filter } from 'lucide-react'
+
+export default function JobsPage() {
+  const { jobs, loading, createJob, updateJob } = useJobs()
+  const { isAdmin, isManager } = useAuth()
+  const [showForm, setShowForm] = useState(false)
+  const [editingJob, setEditingJob] = useState(null)
+  const [formLoading, setFormLoading] = useState(false)
+  const [filter, setFilter] = useState('all')
+
+  const filteredJobs = jobs.filter(job => {
+    if (filter === 'all') return true
+    return job.status === filter
+  })
+
+  const handleCreateJob = async (jobData) => {
+    console.log('[jobs page] handleCreateJob called with:', jobData)
+    setFormLoading(true)
+    const result = await createJob(jobData)
+    console.log('[jobs page] createJob result:', result)
+    setFormLoading(false)
+    if (result.success) {
+      console.log('[jobs page] Job created successfully')
+      setShowForm(false)
+    } else {
+      console.error('[jobs page] Job creation failed:', result.error, result.code)
+      alert('Error creating job: ' + result.error)
+    }
+  }
+
+  const handleUpdateJob = async (jobData) => {
+    if (!editingJob) return
+    setFormLoading(true)
+    const result = await updateJob(editingJob.id, jobData)
+    setFormLoading(false)
+    if (result.success) {
+      setEditingJob(null)
+    } else {
+      alert('Error updating job: ' + result.error)
+    }
+  }
+
+  const canCreate = isAdmin || isManager
+
+  const statusCounts = {
+    all: jobs.length,
+    pending: jobs.filter(j => j.status === 'pending').length,
+    active: jobs.filter(j => j.status === 'active').length,
+    scheduled: jobs.filter(j => j.status === 'scheduled').length,
+    complete: jobs.filter(j => j.status === 'complete').length,
+    blocked: jobs.filter(j => j.status === 'blocked').length
+  }
+
+  return (
+    <div className="min-h-screen pb-8">
+      <Sidebar />
+      <main className="pl-24 pr-8 pt-8">
+        <Header />
+        
+        {/* Actions Bar */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Briefcase className="w-6 h-6 text-accent-blue" />
+              Jobs
+              <Badge variant="info">{jobs.length}</Badge>
+            </h2>
+            
+            {/* Filter Tabs */}
+            <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+              {['all', 'pending', 'scheduled', 'active', 'complete', 'blocked'].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setFilter(status)}
+                  className={`px-3 py-1.5 rounded-md text-sm capitalize transition-colors ${
+                    filter === status 
+                      ? 'bg-accent-blue text-white' 
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  {status} ({statusCounts[status]})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {canCreate && (
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Job
+            </Button>
+          )}
+        </div>
+
+        {/* Jobs List */}
+        <GlassPanel>
+          <JobList 
+            jobs={filteredJobs} 
+            loading={loading}
+            onJobClick={(job) => canCreate && setEditingJob(job)}
+          />
+        </GlassPanel>
+
+        {/* Create Job Modal */}
+        {showForm && (
+          <JobForm
+            onSubmit={handleCreateJob}
+            onClose={() => setShowForm(false)}
+            loading={formLoading}
+          />
+        )}
+
+        {/* Edit Job Modal */}
+        {editingJob && (
+          <JobForm
+            job={editingJob}
+            onSubmit={handleUpdateJob}
+            onClose={() => setEditingJob(null)}
+            loading={formLoading}
+          />
+        )}
+      </main>
+    </div>
+  )
+}

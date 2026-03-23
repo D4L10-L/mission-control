@@ -46,13 +46,27 @@ export const onSnapshot = async (q, callback) => {
   return os(q, callback)
 }
 
-export const addDoc = async (db, ...args) => {
+export const addDoc = async (collRef, data) => {
   const { addDoc: ad } = await import('firebase/firestore')
-  const dbInstance = await getDb()
-  return ad(...args)
+  return ad(collRef, data)
 }
 
 export const getDocs = async (q) => {
   const { getDocs: gd } = await import('firebase/firestore')
   return gd(q)
+}
+
+export const updateDoc = async (docRef, data) => {
+  const { updateDoc: ud } = await import('firebase/firestore')
+  return ud(docRef, data)
+}
+
+export const deleteDoc = async (docRef) => {
+  const { deleteDoc: dd } = await import('firebase/firestore')
+  return dd(docRef)
+}
+
+export const doc = async (db, coll, id) => {
+  const { doc: d } = await import('firebase/firestore')
+  return d(db, coll, id)
 }
